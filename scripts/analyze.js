@@ -25,8 +25,8 @@ function buildPrompt(data) {
   const items = data.data
     .filter(item => (Number(item.collect) || 0) > 300 || PRACTICAL_CATEGORIES.includes(item.industry))
     .sort((a, b) => (Number(b.collect) || 0) - (Number(a.collect) || 0))
-    .slice(0, 120)
-    .map(item => `[${item.industry}] 粉丝:${item.fans} 收藏:${item.collect} 点赞:${item.like} | ${item.title}`)
+    .slice(0, 60)
+    .map(item => `[${item.industry}] 粉丝:${item.fans} 收藏:${item.collect} 点赞:${item.like} | ${item.title.replace(/\s+/g, ' ').trim()}`)
     .join('\n');
 
   return { date, items };
@@ -51,13 +51,7 @@ async function runAnalysis() {
     ...(process.env.ANTHROPIC_BASE_URL && { baseURL: process.env.ANTHROPIC_BASE_URL }),
   });
 
-  const stream = await client.messages.stream({
-    model: 'claude-opus-4-6',
-    max_tokens: 2048,
-    thinking: { type: 'adaptive' },
-    messages: [{
-      role: 'user',
-      content: `你是小红书需求雷达分析师。分析以下新榜"低粉爆文榜（图文）"数据，找出"被低估但可变现的关键词"。
+  const userPrompt = `你是小红书需求雷达分析师。分析以下新榜"低粉爆文榜（图文）"数据，找出"被低估但可变现的关键词"。
 
 ## 分析规则
 
@@ -85,12 +79,29 @@ async function runAnalysis() {
 
 ## 今日榜单数据
 
-${items}`,
-    }],
-  });
+${items}`;
 
-  const message = await stream.finalMessage();
-  const result = message.content.find(b => b.type === 'text')?.text || '';
+  const messages = [{ role: 'user', content: userPrompt }];
+
+  // 处理代理可能注入 web_search 工具的 agentic loop（最多 3 轮）
+  let result = '';
+  for (let i = 0; i < 3; i++) {
+    const message = await client.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 2048,
+      messages,
+    });
+
+    const textBlock = message.content.find(b => b.type === 'text');
+    if (textBlock) {
+      result = textBlock.text;
+      break;
+    }
+
+    // 没有 text block，把这轮 assistant 内容追加，继续下一轮
+    messages.push({ role: 'assistant', content: message.content });
+    messages.push({ role: 'user', content: '请基于以上信息，直接输出分析结果。' });
+  }
 
   console.log('📤 推送到 Discord...');
   await pushToDiscord(result);
