@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "description": "小红书需求雷达 - 从新榜数据识别可变现关键词",
   "scripts": {
-    "fetch": "node scripts/fetch_newrank.js",
+    "fetch": "node scripts/fetch.js",
     "analyze": "node scripts/analyze.js",
-    "daily": "bash scripts/daily.sh"
+    "daily": "node scripts/daily.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",
     "better-sqlite3": "^12.8.0",
+    "dotenv": "^17.3.1",
     "playwright": "^1.40.0"
   }
 }
