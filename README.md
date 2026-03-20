@@ -96,13 +96,15 @@ npm run daily
 # 查看当前 crontab
 crontab -l
 
-# 添加每天 9:00 定时任务
+# 添加每天 9:00 定时任务（必须用 node 完整路径，cron 环境 PATH 受限）
 NODE=$(which node)
 DIR=$(pwd)
 (crontab -l; echo "0 9 * * * cd $DIR && $NODE scripts/daily.js >> logs/daily.log 2>&1") | crontab -
 ```
 
-> **注意**：macOS 合盖睡眠时 cron 不会触发。需要更可靠的方案可改用 launchd。
+> **注意 1**：必须用 `which node` 获取完整路径（如 `/Users/xxx/.nvm/versions/node/vxx/bin/node`），不能直接写 `node` 或用 `npm run daily`，否则 cron 环境找不到 node 会静默失败。
+>
+> **注意 2**：macOS 合盖睡眠时 cron 不会触发，那天会跳过。需要更可靠的方案可改用 launchd。
 
 ## 目录结构
 
